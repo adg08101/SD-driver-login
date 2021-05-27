@@ -57,33 +57,87 @@ def main(p_host, p_user, p_password, p_db, p_port):
     if trailer_id != '':
         with new_connection.cursor() as cursor:
             query = "SELECT TRUCK_TRAILER_ID, TRUCK_TRAILER_NAME FROM " + org_db + ".truck_trailer WHERE " \
-                                                                                   "TRUCK_TRAILER_ID =\'%s\' " % int(
-                trailer_id)
+                                                                                   "TRUCK_TRAILER_ID =\'%s\' " \
+                    % int(trailer_id)
+
             cursor.execute(query)
             trailer = cursor.fetchone()
     else:
         trailer = 'null'
 
-    if trailer:
+    if trailer != 'null':
         print("Selected Trailer =", trailer['TRUCK_TRAILER_NAME'])
     else:
+        print("Selected Trailer = None")
         trailer_id = 'null'
 
+    choice = input("Select option (1) Login or (2) Logout: ")
+
+    if choice == '1':
+        login(new_connection, org_db, driver_id, truck_id, trailer_id)
+    else:
+        logout(new_connection, org_db, driver_id, truck_id)
+
+
+def login(new_connection, org_db, driver_id, truck_id, trailer_id):
     with new_connection.cursor() as cursor:
+        query = "UPDATE " + org_db + ".driver_shift SET END_DATE = now() WHERE DRIVER_ID = \'%s\' AND " \
+                                     "END_TIME IS NULL " % driver_id
+        cursor.execute(query)
+        new_connection.commit()
+
         query = "UPDATE " + org_db + ".driver_shift SET END_TIME = now() WHERE DRIVER_ID = \'%s\' AND " \
                                      "END_TIME IS NULL " % driver_id
         cursor.execute(query)
+        new_connection.commit()
+
+        query = "UPDATE " + org_db + ".route SET ROUTE_STATUS_ID = 4 WHERE DRIVER_ID = \'%s\' AND TRUCK_ID " \
+                                     "= \'%s\' " % (driver_id, truck_id)
+
+        cursor.execute(query)
+        new_connection.commit()
+
+        query = "INSERT INTO " + org_db + ".driver_shift (driver_id, truck_id, TRAILER_ID, shift_date, " \
+                                          "start_time, DRIVER_SHIFT_STATUS_ID) VALUES (%s, %s, %s, date(now()), TIME_FORMAT(time(DATE_ADD(" \
+                                          "now(), INTERVAL -4.5 HOUR)), " % (driver_id, truck_id, trailer_id)
+
+        query += "'%h:%i:%s %p'), 1) "
+
+        cursor.execute(query)
+        new_connection.commit()
+
+        query = "UPDATE " + org_db + ".route SET ROUTE_STATUS_ID = 3 WHERE DRIVER_ID = \'%s\' AND TRUCK_ID = \'%s\' " \
+                % (driver_id, truck_id)
+
+        cursor.execute(query)
+        new_connection.commit()
+
+        new_connection.close()
+
+        print("Driver Logged In successfully")
+
+
+def logout(new_connection, org_db, driver_id, truck_id):
+    with new_connection.cursor() as cursor:
+        query = "UPDATE " + org_db + ".driver_shift SET END_DATE = now() WHERE DRIVER_ID = \'%s\' AND " \
+                                     "END_TIME IS NULL " % driver_id
+        cursor.execute(query)
+        new_connection.commit()
+
         query = "UPDATE " + org_db + ".driver_shift SET END_TIME = now() WHERE DRIVER_ID = \'%s\' AND " \
                                      "END_TIME IS NULL " % driver_id
         cursor.execute(query)
+        new_connection.commit()
 
-        query = f"INSERT INTO " + org_db + ".driver_shift (driver_id, truck_id, TRAILER_ID, shift_date, start_time, " \
-                                           "DRIVER_SHIFT_STATUS_ID) VALUES ({ driver_id }, { truck_id }, { trailer_id " \
-                                           "}, date(now()), time(DATE_ADD(now(), INTERVAL -4.5 HOUR)), 1) "
-
-        print(query)
+        query = "UPDATE " + org_db + ".route SET ROUTE_STATUS_ID = 4 WHERE DRIVER_ID = \'%s\' AND TRUCK_ID = \'%s\' " \
+                % (driver_id, truck_id)
 
         cursor.execute(query)
+        new_connection.commit()
+
+        new_connection.close()
+
+        print("Driver Logged Out successfully")
 
 
 if __name__ == '__main__':
