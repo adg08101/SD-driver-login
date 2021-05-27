@@ -12,16 +12,16 @@ def main(p_host, p_user, p_password, p_db, p_port):
     with connection.cursor() as cursor:
         sql = "SELECT org_name, sd_db_source FROM smartconnect.orgs ORDER BY org_name ASC;"
         cursor.execute(sql)
-        result = cursor.fetchall()
+        organizations = cursor.fetchall()
         cursor.close()
 
-    for res in range(len(result)):
-        print('NUM:', res, '---- ORG:', result[res]['org_name'])
+    for organization in range(len(organizations)):
+        print('NUM:', organization, '---- ORG:', organizations[organization]['org_name'])
 
     org_num = int(input("SELECT ORG: "))
-    org_db = result[org_num]['sd_db_source']
+    org_db = organizations[org_num]['sd_db_source']
 
-    print("Selected Org =", result[org_num]['org_name'])
+    print("Selected Org =", organizations[org_num]['org_name'])
 
     connection.close()
 
@@ -32,6 +32,35 @@ def main(p_host, p_user, p_password, p_db, p_port):
                                      port=int(p_port),
                                      cursorclass=pymysql.cursors.DictCursor)
 
+    choice = input("Select mode (1) Fast Mode or (2) Normal Mode: ")
+
+    if choice == '1':
+        fast_mode(new_connection, org_db)
+    else:
+        normal_mode(new_connection, org_db)
+
+
+def fast_mode(new_connection, org_db):
+    with new_connection.cursor() as cursor:
+        query = "SELECT r.ROUTE_ID, r.DRIVER_ID, d.FIRST_NAME, d.LAST_NAME, r.TRUCK_ID, t.TRUCK_NAME, r.TRAILER_ID, " \
+                "tt.TRUCK_TRAILER_NAME FROM " + org_db + ".route AS r INNER JOIN " + org_db + ".driver AS d " \
+                "ON d.DRIVER_ID = r.DRIVER_ID INNER JOIN " + org_db + ".truck AS t ON t.TRUCK_ID = r.TRUCK_ID " \
+                "LEFT JOIN sd_lakes_vesta_2020_06_04.truck_trailer AS tt ON tt.TRUCK_TRAILER_ID = r.TRAILER_ID WHERE " \
+                "ROUTE_DATE = date(now());"
+
+        cursor.execute(query)
+        routes = cursor.fetchall()
+
+    for route in range(len(routes)):
+        print('NUM:', route, '---- Driver:', routes[route]['FIRST_NAME'], routes[route]['LAST_NAME'],
+              'Truck:', routes[route]['TRUCK_NAME'], 'Trailer:', routes[route]['TRUCK_TRAILER_NAME'])
+
+    driver = int(input("Select Driver to Login: "))
+
+    proc(new_connection, org_db, routes[driver]['DRIVER_ID'], routes[driver]['TRUCK_ID'], routes[driver]['TRAILER_ID'])
+
+
+def normal_mode(new_connection, org_db):
     driver_id = int(input("Driver ID: "))
 
     with new_connection.cursor() as cursor:
@@ -71,6 +100,12 @@ def main(p_host, p_user, p_password, p_db, p_port):
         print("Selected Trailer = None")
         trailer_id = 'null'
 
+    proc(new_connection, org_db, driver_id, truck_id, trailer_id)
+
+    input()
+
+
+def proc(new_connection, org_db, driver_id, truck_id, trailer_id):
     choice = input("Select option (1) Login or (2) Logout: ")
 
     if choice == '1':
@@ -97,8 +132,12 @@ def login(new_connection, org_db, driver_id, truck_id, trailer_id):
         cursor.execute(query)
         new_connection.commit()
 
+        if trailer_id is None:
+            trailer_id = 'null'
+
         query = "INSERT INTO " + org_db + ".driver_shift (driver_id, truck_id, TRAILER_ID, shift_date, " \
-                                          "start_time, DRIVER_SHIFT_STATUS_ID) VALUES (%s, %s, %s, date(now()), TIME_FORMAT(time(DATE_ADD(" \
+                                          "start_time, DRIVER_SHIFT_STATUS_ID) VALUES (%s, %s, %s, date(now()), " \
+                                          "TIME_FORMAT(time(DATE_ADD(" \
                                           "now(), INTERVAL -4.5 HOUR)), " % (driver_id, truck_id, trailer_id)
 
         query += "'%h:%i:%s %p'), 1) "
