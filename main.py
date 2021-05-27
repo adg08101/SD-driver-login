@@ -105,9 +105,6 @@ if __name__ == '__main__':
     if user == '':
         user = 'root'
 
-    if password == '':
-        password = 'gsi*2019'
-
     main(host,
          user,
          password,
