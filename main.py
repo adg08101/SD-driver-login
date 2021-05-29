@@ -65,20 +65,15 @@ def main(p_host, p_user, p_password, p_db, p_port):
 
     fast_mode(new_connection, org_db)
 
-    """choice = input("Select mode (1) Fast Mode or (2) Normal Mode: ")
-
-    if choice == '1':
-        fast_mode(new_connection, org_db)
-    else:
-        normal_mode(new_connection, org_db)"""
-
 
 def fast_mode(new_connection, org_db):
     with new_connection.cursor() as cursor:
-        query = "SELECT r.ROUTE_ID, ds.shift_id, r.DRIVER_ID, d.FIRST_NAME, d.LAST_NAME, r.TRUCK_ID, t.TRUCK_NAME, " \
+        query = "SELECT r.ROUTE_ID, b.BRANCH_NAME, ds.shift_id, r.DRIVER_ID, d.FIRST_NAME, d.LAST_NAME, r.TRUCK_ID, " \
+                "t.TRUCK_NAME, " \
                 "r.TRAILER_ID, tt.TRUCK_TRAILER_NAME FROM " + org_db + ".route AS r " \
                 "INNER JOIN " + org_db + ".driver AS d ON d.DRIVER_ID = r.DRIVER_ID INNER JOIN " + org_db + \
                 ".truck AS t ON t.TRUCK_ID = r.TRUCK_ID " \
+                "INNER JOIN " + org_db + ".branch AS b ON b.BRANCH_ID = r.BRANCH_ID " \
                 "LEFT JOIN " + org_db + ".truck_trailer AS tt ON tt.TRUCK_TRAILER_ID = r.TRAILER_ID " \
                 "LEFT JOIN " + org_db + ".driver_shift AS ds ON ds.DRIVER_ID = d.DRIVER_ID AND " \
                 "ds.TRUCK_ID = t.TRUCK_ID AND ds.shift_date = date(now()) AND ds.end_time IS NULL " \
@@ -91,8 +86,8 @@ def fast_mode(new_connection, org_db):
 
     for route in range(len(routes)):
         print('NUM:', route, '---- Driver:', routes[route]['FIRST_NAME'], routes[route]['LAST_NAME'],
-              'Status:', '**Online**' if routes[route]['shift_id'] else 'Offline', 'Truck:',
-              routes[route]['TRUCK_NAME'], 'Trailer:', routes[route]['TRUCK_TRAILER_NAME'])
+              'Branch:', routes[route]['BRANCH_NAME'], 'Status:', '**Online**' if routes[route]['shift_id'] else
+              'Offline', 'Truck:', routes[route]['TRUCK_NAME'], 'Trailer:', routes[route]['TRUCK_TRAILER_NAME'])
         print("------------------------------------------------------------------------------------------------------")
 
     driver = int(input("Select Driver to Login/Logout: "))
