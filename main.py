@@ -63,17 +63,16 @@ def main_proc(p_host=HOST, p_user=USER, p_password=PASSWORD, p_db=DB, p_port=POR
         if organizations[organization]['show'] == 'true':
             organizations_temp.append(organizations[organization])
 
-    print("-----------------------------")
-
-    for organization in range(len(organizations_temp)):
-        if organizations_temp[organization]['show'] == 'true':
-            print('NUM:', organization, '---- ORG:', organizations_temp[organization]['org_name'])
-            print("-----------------------------")
-
     if len(organizations_temp) < 1:
         print("No routes available for today, create routes and then come back.")
         input()
         exit(0)
+
+    print("-----------------------------")
+
+    for organization in range(len(organizations_temp)):
+        print('NUM:', organization, '---- ORG:', organizations_temp[organization]['org_name'])
+        print("-----------------------------")
 
     org_num = get_input("Select organization", 0, len(organizations_temp) - 1)
 
@@ -112,13 +111,13 @@ def fast_mode(connection, new_connection, org_db):
         query = "SELECT r.ROUTE_ID, b.BRANCH_NAME, ds.shift_id, r.DRIVER_ID, d.FIRST_NAME, d.LAST_NAME, r.TRUCK_ID, " \
                 "t.TRUCK_NAME, " \
                 "r.TRAILER_ID, tt.TRUCK_TRAILER_NAME FROM " + org_db + ".route AS r " \
-                                                                       "INNER JOIN " + org_db + ".driver AS d ON d.DRIVER_ID = r.DRIVER_ID INNER JOIN " + org_db + \
+                "INNER JOIN " + org_db + ".driver AS d ON d.DRIVER_ID = r.DRIVER_ID INNER JOIN " + org_db + \
                 ".truck AS t ON t.TRUCK_ID = r.TRUCK_ID " \
                 "INNER JOIN " + org_db + ".branch AS b ON b.BRANCH_ID = r.BRANCH_ID " \
-                                         "LEFT JOIN " + org_db + ".truck_trailer AS tt ON tt.TRUCK_TRAILER_ID = r.TRAILER_ID " \
-                                                                 "LEFT JOIN " + org_db + ".driver_shift AS ds ON ds.DRIVER_ID = d.DRIVER_ID AND " \
-                                                                                         "ds.TRUCK_ID = t.TRUCK_ID AND ds.shift_date = date(now()) AND ds.end_time IS NULL " \
-                                                                                         "WHERE r.ROUTE_DATE = date(now()) "
+                "LEFT JOIN " + org_db + ".truck_trailer AS tt ON tt.TRUCK_TRAILER_ID = r.TRAILER_ID " \
+                "LEFT JOIN " + org_db + ".driver_shift AS ds ON ds.DRIVER_ID = d.DRIVER_ID AND " \
+                "ds.TRUCK_ID = t.TRUCK_ID AND ds.shift_date = date(now()) AND ds.end_time IS NULL " \
+                "WHERE r.ROUTE_DATE = date(now()) "
 
         cursor.execute(query)
         routes = cursor.fetchall()
