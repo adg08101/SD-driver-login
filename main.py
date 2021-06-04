@@ -268,7 +268,7 @@ def orders_proc(shift, connection, new_connection, driver_id, org_db, truck_id):
                         f"1 , null, 1, 10, 10, "
                         f"0, 0, 0, 0, 0, "
                         f"0, 0, null, 0, null, "
-                        f"0, null, {driver_id}, {shift}, 0, 0, null, "
+                        f"0, null, {driver_id}, {shift['shift_id']}, 0, 0, null, "
                         f"0, 0, null, null, null, "
                         f"DATE_ADD(now(), INTERVAL - 4 HOUR), DATE_ADD(now(), INTERVAL - 4 HOUR), null, 7) "
                     )
@@ -279,7 +279,7 @@ def orders_proc(shift, connection, new_connection, driver_id, org_db, truck_id):
                     query = (
                         f"UPDATE {org_db}.driver_shift "
                         f"SET end_totalizer = end_totalizer + {orders[order]['ORD_QTY']} "
-                        f"WHERE shift_id = {shift} "
+                        f"WHERE shift_id = {shift['shift_id']} "
                     )
 
                     cursor.execute(query)
@@ -288,7 +288,7 @@ def orders_proc(shift, connection, new_connection, driver_id, org_db, truck_id):
                     query = (
                         f"UPDATE {org_db}.driver_shift "
                         f"SET totalizer_total = totalizer_total + {orders[order]['ORD_QTY']} "
-                        f"WHERE shift_id = {shift} "
+                        f"WHERE shift_id = {shift['shift_id']} "
                     )
 
                     cursor.execute(query)
