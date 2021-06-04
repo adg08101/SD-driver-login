@@ -5,8 +5,8 @@ USER = ''
 PASSWORD = ''
 DB = ''
 PORT = 0
-CONNECTION = ''
-NEW_CONNECTION = ''
+CONNECTION = False
+NEW_CONNECTION = False
 
 datetime_format = "'%h:%i:%s %p')"
 
@@ -72,11 +72,11 @@ def main_proc(p_host=HOST, p_user=USER, p_password=PASSWORD, p_db=DB, p_port=POR
         input()
         exit(0)
 
-    print("-----------------------------")
+    print("-" * 50)
 
     for organization in range(len(organizations_temp)):
         print('NUM:', organization, '---- ORG:', organizations_temp[organization]['org_name'])
-        print("-----------------------------")
+        print("-" * 50)
 
     org_num = get_input("Select organization", 0, len(organizations_temp) - 1)
 
@@ -105,7 +105,6 @@ def get_input(text, min_value, max_value):
                 raise ValueError("value_error")
             else:
                 return int(value)
-                break
         except ValueError:
             print("Input value error")
 
@@ -128,13 +127,13 @@ def fast_mode(connection, new_connection, org_db):
         cursor.execute(query)
         routes = cursor.fetchall()
 
-    print("------------------------------------------------------------------------------------------------------")
+    print("-" * 110)
 
     for route in range(len(routes)):
         print('NUM:', route, '---- Driver:', routes[route]['FIRST_NAME'], routes[route]['LAST_NAME'],
               'Branch:', routes[route]['BRANCH_NAME'], 'Status:', '**Online**' if routes[route]['shift_id'] else
               'Offline', 'Truck:', routes[route]['TRUCK_NAME'], 'Trailer:', routes[route]['TRUCK_TRAILER_NAME'])
-        print("------------------------------------------------------------------------------------------------------")
+        print("-" * 110)
 
     driver = get_input("Select Driver to Login/Logout", 0, len(routes) - 1)
 
@@ -199,14 +198,23 @@ def orders_proc(new_connection, driver_id, org_db, truck_id):
             route = cursor.fetchone()
 
             query = (
-                f"SELECT * FROM {org_db}.orders WHERE route_id = {route['ROUTE_ID']} "
+                f"SELECT o.*, os.ORDER_STATUS AS ORDER_STATUS FROM {org_db}.orders AS o "
+                f"INNER JOIN {org_db}.order_status AS os ON o.ORD_STATUS_ID = os.ORD_STATUS_ID "
+                f"WHERE o.route_id = {route['ROUTE_ID']} ORDER BY o.ROUTE_SEQ ASC"
             )
 
             cursor.execute(query)
             orders = cursor.fetchall()
 
-            print(orders)
-            input("Work in progress...")
+            print("-" * 100)
+
+            for order in range(len(orders)):
+                print('NUM:', order, 'Order ID:', orders[order]['ORDER_ID'], 'Account:',
+                      orders[order]['ACCOUNT_ID'], 'Status:', orders[order]['ORDER_STATUS'],
+                      'Sequence:', orders[order]['ROUTE_SEQ'], 'Date:', orders[order]['CREATED_DATE'], '\n',
+                      'Urgency:', orders[order]['URGENCY_FACTOR'], 'Del date:', orders[order]['DELIVERY_DATE'],
+                      'Del type:', orders[order]['DELIVERY_TYPE'], 'Is promised:', orders[order]['IS_PROMISED'])
+                print("-" * 100)
     else:
         pass
 
