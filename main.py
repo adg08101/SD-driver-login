@@ -149,14 +149,18 @@ def proc(connection, new_connection, org_db, driver_id, truck_id, trailer_id):
         )
 
         cursor.execute(query)
-        res = cursor.fetchone()
+        shift = cursor.fetchone()
 
-    if res:
-        orders_proc(new_connection, driver_id, org_db, truck_id)
+    if shift:
+        orders_proc(shift, connection, new_connection, driver_id, org_db, truck_id)
         logout(new_connection, org_db, driver_id, truck_id)
     else:
-        login(new_connection, org_db, driver_id, truck_id, trailer_id)
+        login(connection, new_connection, org_db, driver_id, truck_id, trailer_id)
 
+    repeat_proc(connection, new_connection)
+
+
+def repeat_proc(connection, new_connection):
     repeat = get_input("Repeat process? (0) No / (1) Yes", 0, 1)
     if repeat == 1:
         main_proc(p_connection=True)
@@ -169,7 +173,7 @@ def proc(connection, new_connection, org_db, driver_id, truck_id, trailer_id):
 def end_proc(new_connection, org_db, driver_id):
     with new_connection.cursor() as cursor:
         query = (
-            f"UPDATE {org_db}.driver_shift SET END_DATE = date(DATE_ADD(now(), INTERVAL -4 HOUR)) "
+            f"UPDATE {org_db}.driver_shift SET END_DATE = date(now()) "
             f"WHERE DRIVER_ID = {driver_id} AND END_TIME IS NULL "
         )
         cursor.execute(query)
@@ -184,8 +188,8 @@ def end_proc(new_connection, org_db, driver_id):
         new_connection.commit()
 
 
-def orders_proc(new_connection, driver_id, org_db, truck_id):
-    option = get_input("Driver Logged In, Work with orders? (1)", 0, 1)
+def orders_proc(shift, connection, new_connection, driver_id, org_db, truck_id):
+    option = get_input("Driver Logged In, Log out (0) or Work with orders? (1)", 0, 1)
 
     if option == 1:
         with new_connection.cursor() as cursor:
@@ -206,20 +210,128 @@ def orders_proc(new_connection, driver_id, org_db, truck_id):
             cursor.execute(query)
             orders = cursor.fetchall()
 
-            print("-" * 100)
+            print("-" * 110)
 
             for order in range(len(orders)):
                 print('NUM:', order, 'Order ID:', orders[order]['ORDER_ID'], 'Account:',
                       orders[order]['ACCOUNT_ID'], 'Status:', orders[order]['ORDER_STATUS'],
+                      'Quantity:', orders[order]['ORD_QTY'],
                       'Sequence:', orders[order]['ROUTE_SEQ'], 'Date:', orders[order]['CREATED_DATE'], '\n',
                       'Urgency:', orders[order]['URGENCY_FACTOR'], 'Del date:', orders[order]['DELIVERY_DATE'],
                       'Del type:', orders[order]['DELIVERY_TYPE'], 'Is promised:', orders[order]['IS_PROMISED'])
-                print("-" * 100)
+                print("-" * 110)
+
+            option = get_input("Choose option (0) Deliver all orders (1) Re-Route all orders", 0, 1)
+
+            if option == 0:
+                query = (
+                    f"UPDATE {org_db}.orders AS o "
+                    f"SET ORD_STATUS_ID = 4 "
+                    f"WHERE o.route_id = {route['ROUTE_ID']} "
+                )
+
+                cursor.execute(query)
+                new_connection.commit()
+
+                query = (
+                    f"UPDATE {org_db}.orders AS o "
+                    f"SET DELIVERY_DATE = DATE_ADD(now(), INTERVAL -4 HOUR) "
+                    f"WHERE o.route_id = {route['ROUTE_ID']} "
+                )
+
+                cursor.execute(query)
+                new_connection.commit()
+
+                query = (
+                    f"UPDATE {org_db}.orders AS o "
+                    f"SET DELIVERY_TYPE = 1 "
+                    f"WHERE o.route_id = {route['ROUTE_ID']} "
+                )
+
+                cursor.execute(query)
+                new_connection.commit()
+
+                for order in range(len(orders)):
+                    query = (
+                        f"INSERT INTO {org_db}.delivery"
+                        f"(ORDER_ID, PAYMENT_MODE, DEL_DATE, QTY, PAYMENT_RCVD, PAYMENT_AMOUNT, "
+                        f"LONGITUDE, LATITUDE, POSTED, DEL_COMMENTS, DEL_TOTAL_AMT, DEL_BILLING_STATUS, "
+                        f"DEL_TYPE_ID, DEL_ACT_UPD_NOTES, DEL_FLAG, DEL_TANK_PARTIAL_PERC, DEL_TANK_START_PARTIAL, "
+                        f"DEL_LOCATION_DIFF, DEL_TANKSIZE_ALERT, LEAKTEST_REQUIRED_FLAG, LEAKTEST_SUCCESS_FLAG, RED_TAG_NUM, "
+                        f"NO_ONE_HOME_NUM, LEAKTEST_CUSTOMER_HOME, NO_DELIV_REASON, MANUAL_FLAG, MANUAL_ENTRY_TIME, "
+                        f"DEL_DURATION, PAYMENT_INFO, DRIVER_ID, SHIFT_ID, TOTALIZER_START, TOTALIZER_END, METER_SALE_NUMBER,"
+                        f"PRICE_OVERRIDE, SEQUENCE_NUMBER, CONTAINER_ID, CONTAINER_TYPE_ID, DRIVER_OVERRIDE_PRODUCT_ID, "
+                        f"CREATED_AT, UPDATED_AT, DELIVERY_HOST_ID, PRODUCT_ID) "
+                        f"VALUES "
+                        f"({orders[order]['ORDER_ID']}, 0, DATE_ADD(now(), INTERVAL - 4 HOUR), {orders[order]['ORD_QTY']}, 0, 0, "
+                        f"0, 0, 1, null, {orders[order]['ORD_QTY']}, 0, "
+                        f"1 , null, 1, 10, 10, "
+                        f"0, 0, 0, 0, 0, "
+                        f"0, 0, null, 0, null, "
+                        f"0, null, {driver_id}, {shift}, 0, 0, null, "
+                        f"0, 0, null, null, null, "
+                        f"DATE_ADD(now(), INTERVAL - 4 HOUR), DATE_ADD(now(), INTERVAL - 4 HOUR), null, 7) "
+                    )
+
+                    cursor.execute(query)
+                    new_connection.commit()
+
+                    query = (
+                        f"UPDATE {org_db}.driver_shift "
+                        f"SET end_totalizer = end_totalizer + {orders[order]['ORD_QTY']} "
+                        f"WHERE shift_id = {shift} "
+                    )
+
+                    cursor.execute(query)
+                    new_connection.commit()
+
+                    query = (
+                        f"UPDATE {org_db}.driver_shift "
+                        f"SET totalizer_total = totalizer_total + {orders[order]['ORD_QTY']} "
+                        f"WHERE shift_id = {shift} "
+                    )
+
+                    cursor.execute(query)
+                    new_connection.commit()
+            else:
+                query = (
+                    f"UPDATE {org_db}.orders AS o "
+                    f"SET ORD_STATUS_ID = 3 "
+                    f"WHERE o.route_id = {route['ROUTE_ID']} "
+                )
+
+                cursor.execute(query)
+                new_connection.commit()
+
+                query = (
+                    f"UPDATE {org_db}.orders AS o "
+                    f"SET DELIVERY_DATE = null "
+                    f"WHERE o.route_id = {route['ROUTE_ID']} "
+                )
+
+                cursor.execute(query)
+                new_connection.commit()
+
+                query = (
+                    f"UPDATE {org_db}.orders AS o "
+                    f"SET DELIVERY_TYPE = null "
+                    f"WHERE o.route_id = {route['ROUTE_ID']} "
+                )
+
+                cursor.execute(query)
+                new_connection.commit()
+
+                query = f"DELETE FROM {org_db}.delivery WHERE SHIFT_ID = {shift['shift_id']} "
+
+                cursor.execute(query)
+                new_connection.commit()
+
+            repeat_proc(connection, new_connection)
     else:
         pass
 
 
-def login(new_connection, org_db, driver_id, truck_id, trailer_id):
+def login(connection, new_connection, org_db, driver_id, truck_id, trailer_id):
     with new_connection.cursor() as cursor:
         query = (
             f"SELECT MAX(shift_id) AS SHIFT_ID FROM {org_db}.driver_shift WHERE DRIVER_ID = {driver_id} "
@@ -229,7 +341,9 @@ def login(new_connection, org_db, driver_id, truck_id, trailer_id):
         cursor.execute(query)
         res = cursor.fetchone()
 
-        if res:
+        option = None
+
+        if res['SHIFT_ID']:
             option = get_input("Reopen today's Shift (0) or Open a new one (1)?", 0, 1)
 
         if option == 0:
@@ -246,6 +360,24 @@ def login(new_connection, org_db, driver_id, truck_id, trailer_id):
                 f"UPDATE " + org_db + ".driver_shift "
                 f"SET END_TIME = null "
                 f"WHERE shift_id = {res['SHIFT_ID']}"
+            )
+
+            cursor.execute(query)
+            new_connection.commit()
+
+            query = (
+                f"UPDATE {org_db}.driver_shift "
+                f"SET end_totalizer = 0 "
+                f"WHERE shift_id = {res['SHIFT_ID']} "
+            )
+
+            cursor.execute(query)
+            new_connection.commit()
+
+            query = (
+                f"UPDATE {org_db}.driver_shift "
+                f"SET totalizer_total = 0 "
+                f"WHERE shift_id = {res['SHIFT_ID']} "
             )
 
             cursor.execute(query)
@@ -272,22 +404,29 @@ def login(new_connection, org_db, driver_id, truck_id, trailer_id):
 
         print("Driver Logged In successfully")
 
-        orders_proc(new_connection, driver_id, org_db, truck_id)
+        orders_proc(res['SHIFT_ID'], connection, new_connection, driver_id, org_db, truck_id)
 
 
 def logout(new_connection, org_db, driver_id, truck_id):
     with new_connection.cursor() as cursor:
+        shift_status = get_input("Set Shift status as (1) Active (2) Logout (3) End of day", 1, 3)
         query = (
-            f"UPDATE {org_db}.driver_shift SET DRIVER_SHIFT_STATUS_ID = 2 WHERE DRIVER_ID = {driver_id} AND "
-            f"END_TIME IS NULL "
+            f"UPDATE {org_db}.driver_shift SET DRIVER_SHIFT_STATUS_ID = {shift_status} WHERE DRIVER_ID = {driver_id} "
+            f"AND END_TIME IS NULL "
         )
         cursor.execute(query)
         new_connection.commit()
 
         end_proc(new_connection, org_db, driver_id)
 
+        route_status = get_input("Set Route status as (0) Finished (1) Created", 0, 1)
+
+        if route_status == 0:
+            route_status = 4
+
         query = (
-            f"UPDATE {org_db}.route SET ROUTE_STATUS_ID = 4 WHERE DRIVER_ID = {driver_id} AND TRUCK_ID = {truck_id} "
+            f"UPDATE {org_db}.route SET ROUTE_STATUS_ID = {route_status} WHERE DRIVER_ID = {driver_id} AND "
+            f"TRUCK_ID = {truck_id} "
         )
 
         cursor.execute(query)
