@@ -181,7 +181,7 @@ def end_proc(new_connection, org_db, driver_id):
 
         query = (
             f"UPDATE {org_db}.driver_shift SET END_TIME = "
-            f"TIME_FORMAT(time(DATE_ADD(now(), INTERVAL -4 HOUR)), {datetime_format} WHERE DRIVER_ID = {driver_id} AND "
+            f"TIME_FORMAT(time(DATE_ADD(now(), INTERVAL -0.1 HOUR)), {datetime_format} WHERE DRIVER_ID = {driver_id} AND "
             f"END_TIME IS NULL "
         )
         cursor.execute(query)
@@ -235,7 +235,7 @@ def orders_proc(shift, connection, new_connection, driver_id, org_db, truck_id):
 
                 query = (
                     f"UPDATE {org_db}.orders AS o "
-                    f"SET DELIVERY_DATE = DATE_ADD(now(), INTERVAL -4 HOUR) "
+                    f"SET DELIVERY_DATE = DATE_ADD(now(), INTERVAL -0.1 HOUR) "
                     f"WHERE o.route_id = {route['ROUTE_ID']} "
                 )
 
@@ -391,7 +391,7 @@ def login(connection, new_connection, org_db, driver_id, truck_id, trailer_id):
             query = (
                 f"INSERT INTO " + org_db + ".driver_shift (driver_id, truck_id, TRAILER_ID, shift_date, "
                 f"start_time, DRIVER_SHIFT_STATUS_ID) VALUES ({driver_id}, {truck_id}, {trailer_id}, date(now()), "
-                f"TIME_FORMAT(time(DATE_ADD(now(), INTERVAL -4.1 HOUR)), {datetime_format}, 1)"
+                f"TIME_FORMAT(time(DATE_ADD(now(), INTERVAL -0.1 HOUR)), {datetime_format}, 1)"
             )
 
             cursor.execute(query)
